@@ -1,5 +1,8 @@
 # Node (Firebase Functions)
 functions/node_modules/
+worker/node_modules/
+worker/.wrangler/
+worker/.dev.vars
 
 # Python
 __pycache__/

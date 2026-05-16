@@ -2856,13 +2856,20 @@
             <div class="sp-section">
                 <div class="sp-label">🔑 AI API Keys</div>
                 <div class="info-row" style="flex-direction:column;align-items:flex-start;gap:8px">
-                    <div style="font-size:12px;color:var(--muted2);line-height:1.5">🆓 Free: yahan apni API keys add karo. Local pe python3 server.py + .env file se backup bhi chalega.</div>
+                    <div style="font-size:12px;color:var(--muted2);line-height:1.5">🆓 Free: yahan apni API keys add karo. Local: python3 server.py + .env. Live: key yahan ya neeche Worker URL.</div>
                     <div style="display:flex;gap:8px;width:100%">
                         <input class="api-key-input" id="apiKeyInput2" type="text"
                             placeholder="AIza / sk- / gsk_ / xai- / sk-ant-" style="flex:1"
                             oninput="onKeyInput(this,'settingsDetect')"
                             onkeydown="if(event.key==='Enter') saveApiKey2()" autocomplete="off" />
                         <button class="api-key-save" onclick="saveApiKey2()">Add</button>
+                    </div>
+                    <div style="font-size:11px;color:var(--muted2);margin-top:6px">Backup API (live .env): Cloudflare Worker URL</div>
+                    <div style="display:flex;gap:8px;width:100%;margin-top:4px">
+                        <input class="api-key-input" id="backupApiInput" type="url"
+                            placeholder="https://mysearch-ai-backup.xxx.workers.dev" style="flex:1"
+                            onchange="saveBackupApiUrl()" onkeydown="if(event.key==='Enter') saveBackupApiUrl()" autocomplete="off" />
+                        <button class="api-key-save" onclick="saveBackupApiUrl()">Save</button>
                     </div>
                     <div id="settingsDetect" class="detect-badge" style="display:none"></div>
                     <div id="apiKeyStatus" style="font-size:11px;color:var(--muted)">—</div>
@@ -3164,6 +3171,7 @@
         let aiProvider = 'gemini';
         let serverAiConfigured = false;
         let serverAiProviders = [];
+        let serverApiBase = '';
         let _sugBlurTimer = null;
         let _sugActiveIdx = -1;
         let _autocompleteTimer = null;
@@ -3219,6 +3227,7 @@
             setAiProvider(aiProvider);
             renderFilterPills();
             loadTrendThumbnails();
+            loadBackupApiInput();
             loadServerAiConfig();
         }
 
@@ -3227,25 +3236,71 @@
             return h === 'localhost' || h === '127.0.0.1';
         }
 
+        function getApiBases() {
+            const bases = [''];
+            try {
+                const u = localStorage.getItem('ms_backup_api');
+                if (u && typeof u === 'string') {
+                    const trimmed = u.trim().replace(/\/$/, '');
+                    if (trimmed && !bases.includes(trimmed)) bases.push(trimmed);
+                }
+            } catch (e) { }
+            return bases;
+        }
+
+        async function fetchServerAiConfig() {
+            for (const base of getApiBases()) {
+                try {
+                    const r = await fetch(`${base}/api/ai/config`);
+                    if (!r.ok) continue;
+                    const ct = (r.headers.get('content-type') || '').toLowerCase();
+                    if (!ct.includes('json')) continue;
+                    const text = await r.text();
+                    if (text.trim().startsWith('<')) continue;
+                    const data = JSON.parse(text);
+                    if (data && typeof data.configured === 'boolean') return { data, base };
+                } catch (e) { }
+            }
+            return null;
+        }
+
         async function loadServerAiConfig() {
-            if (!isLocalDevServer()) {
-                serverAiConfigured = false;
-                serverAiProviders = [];
+            serverAiConfigured = false;
+            serverAiProviders = [];
+            serverApiBase = '';
+            const hit = await fetchServerAiConfig();
+            if (!hit) {
+                updateApiKeyStatus();
                 return;
             }
+            const { data, base } = hit;
+            serverApiBase = base;
+            serverAiConfigured = !!data.configured;
+            serverAiProviders = Array.isArray(data.providers) ? data.providers : [];
+            if (serverAiConfigured) {
+                if (data.provider && AI_PROVIDERS[data.provider]) aiProvider = data.provider;
+                else if (serverAiProviders.length && AI_PROVIDERS[serverAiProviders[0]]) aiProvider = serverAiProviders[0];
+                setAiProvider(aiProvider);
+            }
+            updateApiKeyStatus();
+        }
+
+        function loadBackupApiInput() {
+            const el = document.getElementById('backupApiInput');
+            if (!el) return;
+            try { el.value = localStorage.getItem('ms_backup_api') || ''; } catch (e) { el.value = ''; }
+        }
+
+        function saveBackupApiUrl() {
+            const el = document.getElementById('backupApiInput');
+            if (!el) return;
+            const val = el.value.trim().replace(/\/$/, '');
             try {
-                const r = await fetch('/api/ai/config');
-                if (!r.ok) return;
-                const data = await r.json();
-                serverAiConfigured = !!data.configured;
-                serverAiProviders = Array.isArray(data.providers) ? data.providers : [];
-                if (serverAiConfigured) {
-                    if (data.provider && AI_PROVIDERS[data.provider]) aiProvider = data.provider;
-                    else if (serverAiProviders.length && AI_PROVIDERS[serverAiProviders[0]]) aiProvider = serverAiProviders[0];
-                    setAiProvider(aiProvider);
-                }
-                updateApiKeyStatus();
+                if (val) localStorage.setItem('ms_backup_api', val);
+                else localStorage.removeItem('ms_backup_api');
             } catch (e) { }
+            loadServerAiConfig();
+            notifyKey(val ? '✅ Backup API URL save ho gayi' : 'Backup API URL hata di', val ? 'success' : 'info');
         }
 
         function saveOverrides() { try { localStorage.setItem('ms_overrides', JSON.stringify(siteOverrides)); } catch (e) { } }
@@ -3411,8 +3466,9 @@
             const n = getActiveUserKeys(aiProvider).length;
             const el = document.getElementById('apiKeyStatus');
             if (!el) return;
-            if (n) el.textContent = `✅ ${n} user key(s) active` + (serverAiConfigured ? ' · .env backup (local)' : '');
-            else if (serverAiConfigured) el.textContent = '✅ .env backup — sirf local server';
+            const srv = serverAiConfigured ? (serverApiBase ? ' · server backup (Worker)' : ' · .env backup (local)') : '';
+            if (n) el.textContent = `✅ ${n} user key(s) active` + srv;
+            else if (serverAiConfigured) el.textContent = serverApiBase ? '✅ Server backup (Worker URL)' : '✅ .env backup — python3 server.py chalao';
             else el.textContent = '❌ Koi key nahi — yahan add karo';
             renderSettingsApiKeys();
         }
@@ -4606,7 +4662,7 @@ Classify this: "${q}"`;
         }
 
         async function classifyWithEnvServer(q) {
-            const resp = await fetch('/api/ai/classify', {
+            const resp = await fetch(`${serverApiBase}/api/ai/classify`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ query: q, provider: aiProvider, fallback: true })
@@ -5291,9 +5347,16 @@ Classify this: "${q}"`;
         // When AI/local can't decide, show all sites with a small "AI couldn't decide" notice
         function renderAutoFallback(q) {
             const res = document.getElementById('results');
-            const reason = !hasAnyApiKey()
-                ? '⚠️ AI key nahi hai — sab sites dikha rahe hain. Settings me apni API key add karo.'
-                : '🤔 AI clearly classify nahi kar paya — sab sites dikha rahe hain.';
+            let reason;
+            if (!hasAnyApiKey()) {
+                if (isLocalDevServer()) {
+                    reason = '⚠️ AI key nahi — python3 server.py chalao (.env) ya Settings me key add karo.';
+                } else {
+                    reason = '⚠️ Live site pe .env direct nahi chalti — Settings me API key add karo, ya worker/ deploy karke Backup API URL daalo.';
+                }
+            } else {
+                reason = '🤔 AI classify nahi kar paya — sab sites dikha rahe hain.';
+            }
             // Render all sites
             const prevFilter = activeFilter;
             activeFilter = 'all';
