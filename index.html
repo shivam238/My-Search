@@ -2856,7 +2856,7 @@
             <div class="sp-section">
                 <div class="sp-label">🔑 AI API Keys</div>
                 <div class="info-row" style="flex-direction:column;align-items:flex-start;gap:8px">
-                    <div style="font-size:12px;color:var(--muted2);line-height:1.5">Multiple keys add karo. Pehle aapki keys, phir server backup (.env).</div>
+                    <div style="font-size:12px;color:var(--muted2);line-height:1.5">🆓 Free: yahan apni API keys add karo. Local pe python3 server.py + .env file se backup bhi chalega.</div>
                     <div style="display:flex;gap:8px;width:100%">
                         <input class="api-key-input" id="apiKeyInput2" type="text"
                             placeholder="AIza / sk- / gsk_ / xai- / sk-ant-" style="flex:1"
@@ -3222,7 +3222,17 @@
             loadServerAiConfig();
         }
 
+        function isLocalDevServer() {
+            const h = location.hostname;
+            return h === 'localhost' || h === '127.0.0.1';
+        }
+
         async function loadServerAiConfig() {
+            if (!isLocalDevServer()) {
+                serverAiConfigured = false;
+                serverAiProviders = [];
+                return;
+            }
             try {
                 const r = await fetch('/api/ai/config');
                 if (!r.ok) return;
@@ -3401,8 +3411,8 @@
             const n = getActiveUserKeys(aiProvider).length;
             const el = document.getElementById('apiKeyStatus');
             if (!el) return;
-            if (n) el.textContent = `✅ ${n} user key(s) active` + (serverAiConfigured ? ' · server backup ready' : '');
-            else if (serverAiConfigured) el.textContent = '✅ Server backup keys (.env) ready';
+            if (n) el.textContent = `✅ ${n} user key(s) active` + (serverAiConfigured ? ' · .env backup (local)' : '');
+            else if (serverAiConfigured) el.textContent = '✅ .env backup — sirf local server';
             else el.textContent = '❌ Koi key nahi — yahan add karo';
             renderSettingsApiKeys();
         }
@@ -5282,7 +5292,7 @@ Classify this: "${q}"`;
         function renderAutoFallback(q) {
             const res = document.getElementById('results');
             const reason = !hasAnyApiKey()
-                ? '⚠️ AI key nahi hai — sab sites dikha rahe hain. .env file ya Settings me key daalo for smart filter.'
+                ? '⚠️ AI key nahi hai — sab sites dikha rahe hain. Settings me apni API key add karo.'
                 : '🤔 AI clearly classify nahi kar paya — sab sites dikha rahe hain.';
             // Render all sites
             const prevFilter = activeFilter;
