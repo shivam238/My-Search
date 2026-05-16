@@ -35,6 +35,7 @@
             --muted: #6e6e7a;
             --muted2: #9898a6;
             --accent: #e8ff47;
+            --accent-fg: #e8ff47;
             --purple: #9b7aff;
             --teal: #2de0c8;
             --orange: #ff6b35;
@@ -54,7 +55,20 @@
             --text: #111113;
             --muted: #6e6e7a;
             --muted2: #9898a6;
+            --accent-fg: #4a5c00;
             --shadow: rgba(0, 0, 0, 0.15)
+        }
+
+        [data-theme="light"] .api-banner {
+            background: rgba(74, 92, 0, .07);
+            border-color: rgba(74, 92, 0, .18)
+        }
+
+        [data-theme="light"] .r-name-match,
+        [data-theme="light"] .r-note,
+        [data-theme="light"] .badge-pending {
+            background: rgba(74, 92, 0, .09);
+            border-color: rgba(74, 92, 0, .2)
         }
 
         html {
@@ -123,7 +137,7 @@
         }
 
         .logo-word span {
-            color: var(--accent)
+            color: var(--accent-fg)
         }
 
         .settings-btn {
@@ -226,7 +240,7 @@
         }
 
         .search-input:focus {
-            border-color: var(--accent);
+            border-color: var(--accent-fg);
             box-shadow: 0 0 0 3px rgba(232, 255, 71, .1)
         }
 
@@ -376,7 +390,7 @@
             padding: 2px 6px;
             border-radius: 4px;
             background: rgba(232, 255, 71, .15);
-            color: var(--accent);
+            color: var(--accent-fg);
             border: 1px solid rgba(232, 255, 71, .3);
             font-weight: 700
         }
@@ -440,7 +454,7 @@
         .ftab.active {
             background: var(--accent);
             color: #111;
-            border-color: var(--accent);
+            border-color: var(--accent-fg);
             font-weight: 700
         }
 
@@ -461,7 +475,7 @@
         }
 
         .results-meta b {
-            color: var(--accent)
+            color: var(--accent-fg)
         }
 
         .ai-detected {
@@ -742,7 +756,7 @@
             padding: 2px 6px;
             border-radius: 4px;
             background: rgba(232, 255, 71, .08);
-            color: var(--accent);
+            color: var(--accent-fg);
             border: 1px solid rgba(232, 255, 71, .15)
         }
 
@@ -1015,7 +1029,7 @@
         .ms-btn:hover {
             background: var(--accent);
             color: #111;
-            border-color: var(--accent)
+            border-color: var(--accent-fg)
         }
 
         /* API KEY SETUP BANNER */
@@ -1032,7 +1046,7 @@
             font-family: 'Syne', sans-serif;
             font-size: 13px;
             font-weight: 700;
-            color: var(--accent);
+            color: var(--accent-fg);
             margin-bottom: .35rem
         }
 
@@ -1056,7 +1070,7 @@
         }
 
         .api-key-input:focus {
-            border-color: var(--accent)
+            border-color: var(--accent-fg)
         }
 
         .api-key-input::placeholder {
@@ -1211,7 +1225,7 @@
         }
 
         .theme-card.selected {
-            border-color: var(--accent);
+            border-color: var(--accent-fg);
             box-shadow: 0 0 0 2px rgba(232, 255, 71, .18)
         }
 
@@ -1260,7 +1274,7 @@
         }
 
         .theme-card.selected .theme-label {
-            color: var(--accent)
+            color: var(--accent-fg)
         }
 
         .info-row {
@@ -1640,7 +1654,7 @@
 
         .badge-pending {
             background: rgba(232, 255, 71, .12);
-            color: var(--accent);
+            color: var(--accent-fg);
             border: 1px solid rgba(232, 255, 71, .22)
         }
 
@@ -2098,7 +2112,7 @@
         .ak-key-full {
             font-size: 12px;
             font-family: monospace;
-            color: var(--accent);
+            color: var(--accent-fg);
             word-break: break-all;
             line-height: 1.5;
             background: var(--bg3);
@@ -2152,7 +2166,7 @@
 
         .pchip.active {
             background: var(--accent);
-            border-color: var(--accent);
+            border-color: var(--accent-fg);
             color: #000;
             font-weight: 600
         }
@@ -2344,7 +2358,7 @@
             font-family: 'Syne', sans-serif;
             font-size: 22px;
             font-weight: 800;
-            color: var(--accent)
+            color: var(--accent-fg)
         }
 
         .analytics-label {
@@ -2437,7 +2451,7 @@
             font-family: 'Syne', sans-serif;
             font-size: 18px;
             font-weight: 800;
-            color: var(--accent);
+            color: var(--accent-fg);
             line-height: 1.1;
         }
 
@@ -2545,7 +2559,7 @@
         .pro-btn:hover {
             background: var(--accent);
             color: #000;
-            border-color: var(--accent)
+            border-color: var(--accent-fg)
         }
 
         @keyframes toastSlideIn {
@@ -3328,7 +3342,7 @@
                     st.style.color = '#4ade80';
                     st.innerHTML = `✅ <b>Working!</b> AI responded in ${ms}ms — tags: <b>${result.join(', ')}</b>`;
                 } else {
-                    st.style.color = 'var(--accent)';
+                    st.style.color = 'var(--accent-fg)';
                     st.innerHTML = `⚠️ Key saved, lekin AI ne empty/invalid response diya (${ms}ms). Search me try karo.`;
                 }
             } catch (e) {
@@ -3600,7 +3614,7 @@
       <div class="form-group"><label class="form-label">Website ka Naam *</label><input class="form-input" id="sg-name" type="text" placeholder="jaise: ExampleSite"/><div class="form-error" id="sg-name-err">Naam dalna zaroori hai</div></div>
       <div class="form-group"><label class="form-label">Website URL * (https:// zaroor ho)</label><input class="form-input" id="sg-url" type="text" placeholder="https://example.com" oninput="onSgUrlInput()"/><div class="form-error" id="sg-url-err">Valid URL dalo (https:// ke saath)</div></div>
       <div class="form-group">
-        <label class="form-label">Search URL <span style="color:var(--accent)">(zaroori — warna search kaam nahi karega)</span></label>
+        <label class="form-label">Search URL <span style="color:var(--accent-fg)">(zaroori — warna search kaam nahi karega)</span></label>
         <input class="form-input" id="sg-search" type="text" placeholder="https://example.com/search?q=test  ya  ?s={q}"/>
         <div id="sg-search-hint" style="font-size:11px;color:var(--muted2);margin-top:.4rem;line-height:1.5">
           💡 <b>Tip:</b> Website pe <b>kuch bhi search karo</b> (jaise "batman", "test", "gta v"), fir address bar se poora URL copy karke yahan paste karo. Hum automatically search keyword detect karke <code style="background:var(--bg3);padding:1px 5px;border-radius:3px">{q}</code> se replace kar denge.<br>
@@ -4155,7 +4169,13 @@
             activeFilter = f;
             document.querySelectorAll('.ftab').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
-            if (lastQuery) renderResults(lastQuery, lastAITags);
+            if (!lastQuery) return;
+            // After a manual-filter search, lastAITags is empty — re-run local classify for Auto
+            if (f === 'auto' && (!lastAITags || !lastAITags.length)) {
+                const localTags = localClassify(lastQuery);
+                if (localTags) lastAITags = localTags;
+            }
+            renderResults(lastQuery, f === 'auto' ? lastAITags : null);
         }
 
         // Builds the filter pill row dynamically. Built-in pills are always shown.
@@ -4881,16 +4901,25 @@ Classify this: "${q}"`;
         // ===================== RENDER =====================
         function renderResults(q, aiTags, ov) {
             const res = document.getElementById('results');
-            const active = getSitesForSearch(activeFilter, aiTags || [], q);
-            const tagLabel = aiTags && aiTags.length && activeFilter === 'auto' ? `<span class="ai-detected">🤖 ${aiTags.join(', ')}</span>` : '';
+            let tags = aiTags || [];
+            // Auto with no tags shows every site — recover via local classifier (e.g. filter tab switch)
+            if (activeFilter === 'auto' && !tags.length) {
+                const localTags = localClassify(q);
+                if (localTags) {
+                    tags = localTags;
+                    lastAITags = localTags;
+                }
+            }
+            const active = getSitesForSearch(activeFilter, tags, q);
+            const tagLabel = tags.length && activeFilter === 'auto' ? `<span class="ai-detected">🤖 ${tags.join(', ')}</span>` : '';
             const overviewSlot = renderOverviewSlot(q);
 
             const total = active.length;
-            const metaHtml = `<div class="results-meta">${total} sites mein: " <b style="color:var(--accent)">${escHtml(q)}</b> " &nbsp; ${tagLabel} &nbsp; <span style="opacity:.6;font-size:11px">· priority ke hisaab se sorted</span></div>`;
+            const metaHtml = `<div class="results-meta">${total} sites mein: " <b style="color:var(--accent-fg)">${escHtml(q)}</b> " &nbsp; ${tagLabel} &nbsp; <span style="opacity:.6;font-size:11px">· priority ke hisaab se sorted</span></div>`;
 
             if (!total) {
                 res.innerHTML = `${overviewSlot}<div class="empty-state"><div class="big">😕</div>Koi matching site nahi mili</div>`;
-                loadOverviewInto(q, aiTags);
+                loadOverviewInto(q, tags);
                 return;
             }
             const cards = active.map((s, i) => {
@@ -4925,7 +4954,7 @@ Classify this: "${q}"`;
     </a>`;
             }).join('');
             res.innerHTML = `${overviewSlot}<div class="results-meta"><b>${active.length}</b> site${active.length > 1 ? 's' : ''} mein: "<b>${q}</b>" ${tagLabel}<span style="color:var(--muted2);font-size:11px">· priority ke hisaab se sorted</span></div>${cards}`;
-            loadOverviewInto(q, aiTags);
+            loadOverviewInto(q, tags);
         }
 
         // Silent background clipboard copy — used on every direct-search card click
@@ -5031,7 +5060,7 @@ Classify this: "${q}"`;
                 const err = window._lastAiError ? ` <span style="color:var(--muted2);font-weight:400">(${String(window._lastAiError).slice(0, 80)})</span>` : '';
                 reasonMsg = `<div style="font-size:12px;color:var(--orange);margin-bottom:.7rem;font-weight:600">⚠️ AI fail ho gaya — manually choose karo${err}</div>`;
             } else {
-                reasonMsg = '<div style="font-size:12px;color:var(--accent);margin-bottom:.7rem;font-weight:600">🤔 Ye kya hai — batao?</div>';
+                reasonMsg = '<div style="font-size:12px;color:var(--accent-fg);margin-bottom:.7rem;font-weight:600">🤔 Ye kya hai — batao?</div>';
             }
             document.getElementById('results').innerHTML = `
     <div style="background:var(--bg2);border:1px solid rgba(232,255,71,.22);border-radius:12px;padding:1rem">
@@ -5538,7 +5567,7 @@ Classify this: "${q}"`;
                 <div class="analytics-card-sm"><div class="num">${activeDays}</div><div class="lbl">Active Days</div></div>
             </div>`;
 
-            html += `<div style="font-size:11px;color:var(--muted);margin-bottom:.5rem">⏱ Last search: <b style="color:var(--accent)">${lastAgo}</b> &nbsp;·&nbsp; ⚡ Peak hour: <b style="color:var(--accent)">${peakHour}:00 – ${peakHour + 1}:00</b></div>`;
+            html += `<div style="font-size:11px;color:var(--muted);margin-bottom:.5rem">⏱ Last search: <b style="color:var(--accent-fg)">${lastAgo}</b> &nbsp;·&nbsp; ⚡ Peak hour: <b style="color:var(--accent-fg)">${peakHour}:00 – ${peakHour + 1}:00</b></div>`;
 
             // Last 14 days sparkline
             html += `<div class="admin-section-title"><span>📅 Last 14 Days</span><span style="text-transform:none;color:var(--muted2);font-weight:400">peak ${maxDay} search/day</span></div>`;
