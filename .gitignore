@@ -2,18 +2,21 @@
 __pycache__/
 *.py[cod]
 *$py.class
+*.egg-info/
+.venv/
+venv/
+
+# Environment & secrets
+.env
+.env.*
+!.env.example
 
 # Firebase
 .firebase/
 firebase-debug.log*
 firebase-debug.*.log*
 
-# Environment Variables
-.env
-.env.*
-!.env.example
-
-# OS generated files
+# OS
 .DS_Store
 .DS_Store?
 ._*
@@ -22,6 +25,7 @@ firebase-debug.*.log*
 ehthumbs.db
 Thumbs.db
 
-# Optional: Ignore text files if they contain sensitive info or local notes
-# admin.txt
+# IDE / local
+.cursor/
+*.log
 admin.txt

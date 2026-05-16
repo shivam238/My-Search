@@ -2594,23 +2594,6 @@
             </button>
         </div>
 
-        <!-- API KEY BANNER — sirf tab dikhega jab key nahi hai -->
-        <div class="api-banner fade-in" id="apiBanner" style="display:none;animation-delay:.04s">
-            <div
-                style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:4px;margin-bottom:.45rem">
-                <div class="api-banner-title" style="margin-bottom:0">🔑 AI API Key Daalo</div>
-                <span style="font-size:11px;color:var(--muted)">Gemini · OpenAI · Groq · Grok · Claude</span>
-            </div>
-            <div class="api-key-row">
-                <input class="api-key-input" id="apiKeyInput" type="text"
-                    placeholder="AIza… / sk-… / gsk_… / xai-… / sk-ant-…" oninput="onKeyInput(this,'bannerDetect')"
-                    onkeydown="if(event.key==='Enter') saveApiKey()" autocomplete="off" />
-                <button class="api-key-save" onclick="saveApiKey()">Save ✓</button>
-            </div>
-            <div id="bannerDetect" class="detect-badge" style="display:none"></div>
-            <div class="api-key-saved" id="apiKeySaved" style="display:none">✅ Key save ho gayi! Ab AI search kaam
-                karega.</div>
-        </div>
 
         <div class="ai-badge fade-in" style="animation-delay:.05s">
             <span class="ai-dot"></span>
@@ -2871,19 +2854,19 @@
                 </div>
             </div>
             <div class="sp-section">
-                <div class="sp-label">🔑 AI API Key</div>
+                <div class="sp-label">🔑 AI API Keys</div>
                 <div class="info-row" style="flex-direction:column;align-items:flex-start;gap:8px">
-                    <div style="font-size:12px;color:var(--muted2)">Koi bhi key daalo — Gemini, OpenAI, Groq, Grok,
-                        Claude. Auto detect hoga.</div>
+                    <div style="font-size:12px;color:var(--muted2);line-height:1.5">Multiple keys add karo. Pehle aapki keys, phir server backup (.env).</div>
                     <div style="display:flex;gap:8px;width:100%">
                         <input class="api-key-input" id="apiKeyInput2" type="text"
-                            placeholder="Key paste karo (AIza / sk- / gsk_ / xai- / sk-ant-)" style="flex:1"
+                            placeholder="AIza / sk- / gsk_ / xai- / sk-ant-" style="flex:1"
                             oninput="onKeyInput(this,'settingsDetect')"
                             onkeydown="if(event.key==='Enter') saveApiKey2()" autocomplete="off" />
-                        <button class="api-key-save" onclick="saveApiKey2()">Save</button>
+                        <button class="api-key-save" onclick="saveApiKey2()">Add</button>
                     </div>
                     <div id="settingsDetect" class="detect-badge" style="display:none"></div>
                     <div id="apiKeyStatus" style="font-size:11px;color:var(--muted)">—</div>
+                    <div id="settingsApiKeyList" style="width:100%"></div>
                 </div>
             </div>
             <div class="sp-section">
@@ -3179,6 +3162,8 @@
         let lastAITags = [];
         let geminiApiKey = '';
         let aiProvider = 'gemini';
+        let serverAiConfigured = false;
+        let serverAiProviders = [];
         let _sugBlurTimer = null;
         let _sugActiveIdx = -1;
         let _autocompleteTimer = null;
@@ -3192,7 +3177,7 @@
             try { const r = localStorage.getItem('ms_custom_cats'); if (r) customCategories = JSON.parse(r); } catch (e) { customCategories = {}; }
             try { const r = localStorage.getItem('ms_suggestions'); if (r) suggestions = JSON.parse(r); } catch (e) { suggestions = []; }
             try { const r = localStorage.getItem('ms_feedbacks'); if (r) feedbacks = JSON.parse(r); } catch (e) { feedbacks = []; }
-            try { const r = localStorage.getItem('ms_api_key_log'); if (r) apiKeyLog = JSON.parse(r); } catch (e) { apiKeyLog = []; }
+            try { const r = localStorage.getItem('ms_api_key_log'); if (r) apiKeyLog = JSON.parse(r).map(e => ({ ...e, disabled: !!e.disabled })); } catch (e) { apiKeyLog = []; }
             try { const r = localStorage.getItem('ms_search_history'); if (r) searchHistory = JSON.parse(r); } catch (e) { searchHistory = []; }
             try { const r = localStorage.getItem('ms_admin_search_log'); if (r) adminSearchLog = JSON.parse(r); } catch (e) { adminSearchLog = []; }
             try { const r = localStorage.getItem('ms_theme'); if (r) currentTheme = r; } catch (e) { currentTheme = 'dark'; }
@@ -3230,12 +3215,29 @@
             }
             applyTheme(currentTheme);
             updateSiteCountInfo();
-            updateApiBanner();
             updateApiKeyStatus();
             setAiProvider(aiProvider);
             renderFilterPills();
             loadTrendThumbnails();
+            loadServerAiConfig();
         }
+
+        async function loadServerAiConfig() {
+            try {
+                const r = await fetch('/api/ai/config');
+                if (!r.ok) return;
+                const data = await r.json();
+                serverAiConfigured = !!data.configured;
+                serverAiProviders = Array.isArray(data.providers) ? data.providers : [];
+                if (serverAiConfigured) {
+                    if (data.provider && AI_PROVIDERS[data.provider]) aiProvider = data.provider;
+                    else if (serverAiProviders.length && AI_PROVIDERS[serverAiProviders[0]]) aiProvider = serverAiProviders[0];
+                    setAiProvider(aiProvider);
+                }
+                updateApiKeyStatus();
+            } catch (e) { }
+        }
+
         function saveOverrides() { try { localStorage.setItem('ms_overrides', JSON.stringify(siteOverrides)); } catch (e) { } }
         function saveCustom() { try { localStorage.setItem('ms_custom_sites', JSON.stringify(customSites)); } catch (e) { } }
         function saveCustomCats() { try { localStorage.setItem('ms_custom_cats', JSON.stringify(customCategories)); } catch (e) { } }
@@ -3263,18 +3265,31 @@
             saveAdminSearchLog();
         }
 
-        function logApiKeySave(key) {
+        function logApiKeySave(key, providerOverride) {
+            const provName = providerOverride || autoDetectProvider(key) || aiProvider;
+            const prov = AI_PROVIDERS[provName] || AI_PROVIDERS.gemini;
+            const existing = apiKeyLog.find(e => e.fullKey === key);
             const now = new Date();
-            const prov = AI_PROVIDERS[aiProvider] || AI_PROVIDERS.gemini;
-            const entry = {
-                id: genId(),
-                provider: aiProvider,
-                providerLabel: prov.icon + ' ' + prov.fullLabel,
-                keyPreview: key.slice(0, 8) + '...' + key.slice(-4),
-                fullKey: key,
-                savedAt: now.toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })
-            };
-            apiKeyLog.unshift(entry);
+            const savedAt = now.toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+            if (existing) {
+                existing.disabled = false;
+                delete existing.failedAt;
+                delete existing.lastError;
+                existing.provider = provName;
+                existing.providerLabel = prov.icon + ' ' + prov.fullLabel;
+                existing.savedAt = savedAt;
+                apiKeyLog = [existing, ...apiKeyLog.filter(e => e.id !== existing.id)];
+            } else {
+                apiKeyLog.unshift({
+                    id: genId(),
+                    provider: provName,
+                    providerLabel: prov.icon + ' ' + prov.fullLabel,
+                    keyPreview: key.slice(0, 8) + '...' + key.slice(-4),
+                    fullKey: key,
+                    disabled: false,
+                    savedAt
+                });
+            }
             saveApiKeyLog();
         }
 
@@ -3317,20 +3332,89 @@
         function validateGeminiKey(key) {
             return validateApiKey(key);
         }
-        function updateApiBanner() {
-            const banner = document.getElementById('apiBanner');
-            if (banner) banner.style.display = geminiApiKey ? 'none' : 'block';
+        let _keyNotifyAt = 0;
+        function notifyKey(msg, type) {
+            const now = Date.now();
+            if (now - _keyNotifyAt < 2800) return;
+            _keyNotifyAt = now;
+            showToast(msg, type || 'warn');
         }
+        function isApiKeyFailure(msg, status) {
+            const s = String(msg || '').toLowerCase();
+            if (status && [401, 403, 429, 402].includes(status)) return true;
+            return /quota|rate.?limit|billing|invalid.*api|api[_ ]?key|exhausted|permission|denied|unauthorized|exceeded|resource_exhausted|credit/.test(s);
+        }
+        function getActiveUserKeys(preferredProvider) {
+            const active = apiKeyLog.filter(e => e.fullKey && !e.disabled);
+            const pref = active.filter(e => e.provider === preferredProvider);
+            const rest = active.filter(e => e.provider !== preferredProvider);
+            return [...pref, ...rest];
+        }
+        function hasAnyApiKey() {
+            return getActiveUserKeys(aiProvider).length > 0 || serverAiConfigured;
+        }
+        function setActiveKey(entry) {
+            if (!entry) return;
+            geminiApiKey = entry.fullKey;
+            aiProvider = entry.provider;
+            saveGeminiKey(entry.fullKey);
+            saveAiProvider(entry.provider);
+        }
+        function markKeyFailed(entry, msg) {
+            entry.disabled = true;
+            entry.failedAt = Date.now();
+            entry.lastError = (msg || 'failed').slice(0, 120);
+            saveApiKeyLog();
+            renderSettingsApiKeys();
+            if (typeof renderAdminApiKeys === 'function') renderAdminApiKeys();
+            notifyKey(`⚠️ Aapki ${entry.providerLabel || entry.provider} key fail — agli try ho rahi hai`, 'warn');
+        }
+        function reenableApiKey(id) {
+            const e = apiKeyLog.find(x => x.id === id);
+            if (!e) return;
+            e.disabled = false;
+            delete e.failedAt;
+            delete e.lastError;
+            saveApiKeyLog();
+            renderSettingsApiKeys();
+            if (typeof renderAdminApiKeys === 'function') renderAdminApiKeys();
+            notifyKey('✅ Key dubara active', 'success');
+        }
+        function renderSettingsApiKeys() {
+            const el = document.getElementById('settingsApiKeyList');
+            if (!el) return;
+            if (!apiKeyLog.length) {
+                el.innerHTML = '<div style="font-size:11px;color:var(--muted)">Abhi koi key saved nahi</div>';
+                return;
+            }
+            let html = '';
+            apiKeyLog.forEach(entry => {
+                const sid = entry.id.replace(/'/g, "\'");
+                const prov = entry.providerLabel || entry.provider;
+                const st = entry.disabled ? '<span style="color:var(--orange);font-size:10px">⛔ fail</span>' : '<span style="color:var(--green);font-size:10px">✅ ok</span>';
+                html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;margin-top:6px;border-radius:8px;border:1px solid var(--border);background:var(--bg3);font-size:11px"><span>' + prov + ' <code style="opacity:.75">' + entry.keyPreview + '</code> ' + st + '</span><span style="display:flex;gap:6px">' + (entry.disabled ? '<button class="ms-btn" style="padding:3px 8px;font-size:10px" onclick="reenableApiKey(\'' + sid + '\')">↺</button>' : '') + '<button class="btn-delete-red" style="font-size:10px;padding:3px 8px" onclick="deleteApiKeyEntry(\'' + sid + '\')">🗑</button></span></div>';
+            });
+            el.innerHTML = html;
+        }
+        function updateApiBanner() { /* removed from homepage */ }
         function updateApiKeyStatus() {
-            const prov = AI_PROVIDERS[aiProvider] || AI_PROVIDERS.gemini;
+            const n = getActiveUserKeys(aiProvider).length;
             const el = document.getElementById('apiKeyStatus');
-            if (el) el.textContent = geminiApiKey ? `✅ ${prov.icon} ${prov.label} key saved (${geminiApiKey.slice(0, 8)}...)` : '❌ Key nahi hai';
-            const inp2 = document.getElementById('apiKeyInput2');
-            if (inp2 && geminiApiKey) inp2.placeholder = geminiApiKey.slice(0, 8) + '... (change ke liye type karo)';
+            if (!el) return;
+            if (n) el.textContent = `✅ ${n} user key(s) active` + (serverAiConfigured ? ' · server backup ready' : '');
+            else if (serverAiConfigured) el.textContent = '✅ Server backup keys (.env) ready';
+            else el.textContent = '❌ Koi key nahi — yahan add karo';
+            renderSettingsApiKeys();
         }
         async function testApiKeyLive(statusElId) {
             const st = document.getElementById(statusElId);
             if (!st) return;
+            if (!hasAnyApiKey()) {
+                st.style.display = 'block';
+                st.style.color = 'var(--red)';
+                st.innerHTML = '❌ Koi key nahi — yahan add karo';
+                return;
+            }
             st.style.display = 'block';
             st.style.color = 'var(--muted2)';
             st.innerHTML = '🔄 Test kar raha hu... (AI se ping)';
@@ -3352,35 +3436,6 @@
             }
         }
 
-        function saveApiKey() {
-            const val = (document.getElementById('apiKeyInput').value || '').trim();
-            if (!val) return;
-            const detected = autoDetectProvider(val);
-            if (!detected || !AI_PROVIDERS[detected].validate(val)) {
-                const inp = document.getElementById('apiKeyInput');
-                inp.style.borderColor = 'var(--red)';
-                const saved = document.getElementById('apiKeySaved');
-                saved.style.display = 'block';
-                saved.style.color = 'var(--red)';
-                saved.textContent = '❌ Invalid key! Gemini (AIza), OpenAI (sk-), Groq (gsk_), Grok (xai-), Claude (sk-ant-) mein se ek honi chahiye.';
-                setTimeout(() => { inp.style.borderColor = ''; saved.style.display = 'none'; saved.style.color = ''; saved.textContent = '✅ Key save ho gayi! Ab AI search kaam karega.'; }, 3500);
-                return;
-            }
-            aiProvider = detected;
-            saveAiProvider(detected);
-            geminiApiKey = val;
-            saveGeminiKey(val);
-            logApiKeySave(val);
-            const prov = AI_PROVIDERS[detected];
-            const saved = document.getElementById('apiKeySaved');
-            saved.style.display = 'block';
-            saved.style.color = '';
-            saved.textContent = `✅ ${prov.icon} ${prov.fullLabel} key save ho gayi! Ab test kar raha hu...`;
-            document.getElementById('apiBanner').style.display = 'none';
-            updateApiKeyStatus();
-            // Live test
-            testApiKeyLive('apiKeySaved');
-        }
         function saveApiKey2() {
             const val = (document.getElementById('apiKeyInput2').value || '').trim();
             if (!val) return;
@@ -3389,21 +3444,18 @@
                 const inp = document.getElementById('apiKeyInput2');
                 inp.style.borderColor = 'var(--red)';
                 const st = document.getElementById('apiKeyStatus');
-                if (st) { st.textContent = '❌ Invalid key format. Gemini (AIza), OpenAI (sk-), Groq (gsk_), Grok (xai-), Claude (sk-ant-)'; st.style.color = 'var(--red)'; }
+                if (st) { st.textContent = '❌ Invalid key format'; st.style.color = 'var(--red)'; }
                 setTimeout(() => { inp.style.borderColor = ''; if (st) { st.style.color = ''; updateApiKeyStatus(); } }, 3500);
+                notifyKey('❌ Invalid API key format', 'warn');
                 return;
             }
-            aiProvider = detected;
-            saveAiProvider(detected);
-            geminiApiKey = val;
-            saveGeminiKey(val);
-            logApiKeySave(val);
-            updateApiBanner();
+            logApiKeySave(val, detected);
+            setActiveKey(apiKeyLog[0]);
             updateApiKeyStatus();
-            const prov = AI_PROVIDERS[detected];
             document.getElementById('apiKeyInput2').value = '';
-            document.getElementById('settingsDetect').style.display = 'none';
-            // Live test in the status line (no alert)
+            const det = document.getElementById('settingsDetect');
+            if (det) det.style.display = 'none';
+            notifyKey(`✅ ${AI_PROVIDERS[detected].label} key add ho gayi`, 'success');
             testApiKeyLive('apiKeyStatus');
         }
 
@@ -3531,6 +3583,7 @@
             applyTheme(currentTheme);
             updateSiteCountInfo();
             updateApiKeyStatus();
+            renderSettingsApiKeys();
         }
         function closeSettings() {
             document.body.classList.remove('modal-open');
@@ -4145,7 +4198,6 @@
                 geminiApiKey = '';
                 saveGeminiKey('');
                 localStorage.removeItem('ms_gemini_key');
-                updateApiBanner();
                 updateApiKeyStatus();
             }
             apiKeyLog = apiKeyLog.filter(e => e.id !== id);
@@ -4157,7 +4209,6 @@
             geminiApiKey = '';
             saveGeminiKey('');
             localStorage.removeItem('ms_gemini_key');
-            updateApiBanner();
             updateApiKeyStatus();
             apiKeyLog = [];
             saveApiKeyLog();
@@ -4481,80 +4532,117 @@ Classify this: "${q}"`;
             return cleaned;
         }
 
-        async function classifyWithProvider(q) {
-            if (!geminiApiKey) return null;
-            try {
-                switch (aiProvider) {
-                    case 'gemini': {
-                        // Direct call to Gemini API (no worker dependency) — supports CORS
-                        // Try newest models first, fall back to older ones if 404 (model deprecated)
-                        const models = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-flash-latest', 'gemini-1.5-flash'];
-                        let lastErr = null;
-                        for (const model of models) {
-                            try {
-                                const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(geminiApiKey)}`;
-                                const resp = await fetch(url, {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({
-                                        contents: [{ parts: [{ text: CLASSIFY_PROMPT(q) }] }],
-                                        generationConfig: { temperature: 0, maxOutputTokens: 60, responseMimeType: 'application/json' }
-                                    })
-                                });
-                                const data = await resp.json();
-                                if (!resp.ok || data.error) {
-                                    const msg = data.error?.message || `HTTP ${resp.status}`;
-                                    lastErr = new Error(msg);
-                                    // If model not found / 404, try next model. For other errors (auth, quota), bail out.
-                                    if (resp.status === 404 || /not found|not supported/i.test(msg)) continue;
-                                    throw lastErr;
-                                }
-                                const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-                                return cleanTags(extractTags(text));
-                            } catch (e) {
-                                lastErr = e;
-                                if (!/not found|not supported|404/i.test(e.message || '')) throw e;
+        async function classifyWithSingleKey(q, key, provider) {
+            const p = provider || aiProvider;
+            switch (p) {
+                case 'gemini': {
+                    const models = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-flash-latest', 'gemini-1.5-flash'];
+                    let lastErr = null;
+                    for (const model of models) {
+                        try {
+                            const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`;
+                            const resp = await fetch(url, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    contents: [{ parts: [{ text: CLASSIFY_PROMPT(q) }] }],
+                                    generationConfig: { temperature: 0, maxOutputTokens: 60, responseMimeType: 'application/json' }
+                                })
+                            });
+                            const data = await resp.json();
+                            if (!resp.ok || data.error) {
+                                const msg = data.error?.message || `HTTP ${resp.status}`;
+                                lastErr = new Error(msg);
+                                if (resp.status === 404 || /not found|not supported/i.test(msg)) continue;
+                                const err = new Error(msg);
+                                err.status = resp.status;
+                                throw err;
                             }
+                            const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+                            return cleanTags(extractTags(text));
+                        } catch (e) {
+                            lastErr = e;
+                            if (!/not found|not supported|404/i.test(e.message || '')) throw e;
                         }
-                        throw lastErr || new Error('All Gemini models failed');
                     }
-                    case 'openai': {
-                        const resp = await fetch('https://api.openai.com/v1/chat/completions', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${geminiApiKey}` }, body: JSON.stringify({ model: 'gpt-4o-mini', messages: [{ role: 'user', content: CLASSIFY_PROMPT(q) }], max_tokens: 60, temperature: 0, response_format: { type: 'json_object' } }) });
-                        const data = await resp.json();
-                        if (!resp.ok || data.error) throw new Error(data.error?.message || `HTTP ${resp.status}`);
-                        return cleanTags(extractTags(data.choices?.[0]?.message?.content || ''));
-                    }
-                    case 'groq': {
-                        const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${geminiApiKey}` }, body: JSON.stringify({ model: 'llama-3.1-8b-instant', messages: [{ role: 'user', content: CLASSIFY_PROMPT(q) }], max_tokens: 60, temperature: 0, response_format: { type: 'json_object' } }) });
-                        const data = await resp.json();
-                        if (!resp.ok || data.error) throw new Error(data.error?.message || `HTTP ${resp.status}`);
-                        return cleanTags(extractTags(data.choices?.[0]?.message?.content || ''));
-                    }
-                    case 'grok': {
-                        const resp = await fetch('https://api.x.ai/v1/chat/completions', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${geminiApiKey}` }, body: JSON.stringify({ model: 'grok-beta', messages: [{ role: 'user', content: CLASSIFY_PROMPT(q) }], max_tokens: 60, temperature: 0 }) });
-                        const data = await resp.json();
-                        if (!resp.ok || data.error) throw new Error(data.error?.message || `HTTP ${resp.status}`);
-                        return cleanTags(extractTags(data.choices?.[0]?.message?.content || ''));
-                    }
-                    case 'claude': {
-                        const resp = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-api-key': geminiApiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' }, body: JSON.stringify({ model: 'claude-3-haiku-20240307', max_tokens: 60, messages: [{ role: 'user', content: CLASSIFY_PROMPT(q) }] }) });
-                        const data = await resp.json();
-                        if (!resp.ok || data.error) throw new Error(data.error?.message || `HTTP ${resp.status}`);
-                        return cleanTags(extractTags(data.content?.[0]?.text || ''));
-                    }
-                    default: return null;
+                    throw lastErr || new Error('All Gemini models failed');
                 }
-            } catch (e) {
-                console.warn('AI classify failed:', e);
-                window._lastAiError = e.message || String(e);
-                return null;
+                case 'openai': {
+                    const resp = await fetch('https://api.openai.com/v1/chat/completions', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` }, body: JSON.stringify({ model: 'gpt-4o-mini', messages: [{ role: 'user', content: CLASSIFY_PROMPT(q) }], max_tokens: 60, temperature: 0, response_format: { type: 'json_object' } }) });
+                    const data = await resp.json();
+                    if (!resp.ok || data.error) { const err = new Error(data.error?.message || `HTTP ${resp.status}`); err.status = resp.status; throw err; }
+                    return cleanTags(extractTags(data.choices?.[0]?.message?.content || ''));
+                }
+                case 'groq': {
+                    const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` }, body: JSON.stringify({ model: 'llama-3.1-8b-instant', messages: [{ role: 'user', content: CLASSIFY_PROMPT(q) }], max_tokens: 60, temperature: 0, response_format: { type: 'json_object' } }) });
+                    const data = await resp.json();
+                    if (!resp.ok || data.error) { const err = new Error(data.error?.message || `HTTP ${resp.status}`); err.status = resp.status; throw err; }
+                    return cleanTags(extractTags(data.choices?.[0]?.message?.content || ''));
+                }
+                case 'grok': {
+                        const resp = await fetch('https://api.x.ai/v1/chat/completions', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` }, body: JSON.stringify({ model: 'grok-2-1212', messages: [{ role: 'user', content: CLASSIFY_PROMPT(q) }], max_tokens: 60, temperature: 0 }) });
+                    const data = await resp.json();
+                    if (!resp.ok || data.error) { const err = new Error(data.error?.message || `HTTP ${resp.status}`); err.status = resp.status; throw err; }
+                    return cleanTags(extractTags(data.choices?.[0]?.message?.content || ''));
+                }
+                case 'claude': {
+                    const resp = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' }, body: JSON.stringify({ model: 'claude-3-haiku-20240307', max_tokens: 60, messages: [{ role: 'user', content: CLASSIFY_PROMPT(q) }] }) });
+                    const data = await resp.json();
+                    if (!resp.ok || data.error) { const err = new Error(data.error?.message || `HTTP ${resp.status}`); err.status = resp.status; throw err; }
+                    return cleanTags(extractTags(data.content?.[0]?.text || ''));
+                }
+                default: return null;
             }
+        }
+
+        async function classifyWithEnvServer(q) {
+            const resp = await fetch('/api/ai/classify', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ query: q, provider: aiProvider, fallback: true })
+            });
+            const data = await resp.json();
+            if (resp.ok && data.tags) return { tags: data.tags, source: 'env' };
+            const err = new Error(data.error || `HTTP ${resp.status}`);
+            err.keyFailed = data.keyFailed;
+            err.allFailed = data.allFailed;
+            throw err;
+        }
+
+        async function classifyWithProvider(q) {
+            const userKeys = getActiveUserKeys(aiProvider);
+            for (const entry of userKeys) {
+                try {
+                    const tags = await classifyWithSingleKey(q, entry.fullKey, entry.provider);
+                    if (tags && tags.length) {
+                        setActiveKey(entry);
+                        return tags;
+                    }
+                } catch (e) {
+                    const msg = e.message || String(e);
+                    if (isApiKeyFailure(msg, e.status)) markKeyFailed(entry, msg);
+                    else console.warn('AI classify error:', e);
+                }
+            }
+            if (userKeys.length) notifyKey('⚠️ Aapki sab keys fail — server backup try ho raha hai', 'warn');
+
+            if (serverAiConfigured) {
+                try {
+                    const r = await classifyWithEnvServer(q);
+                    notifyKey('ℹ️ Server backup API use ho rahi hai (.env)', 'success');
+                    return r.tags;
+                } catch (e) {
+                    if (e.allFailed) notifyKey('❌ Sab API keys (user + server) fail ho gayi', 'warn');
+                    window._lastAiError = e.message || String(e);
+                }
+            }
+            return null;
         }
 
         async function classifyQuery(q) {
             const local = localClassify(q);
             if (local) return { tags: local, source: 'local' };
-            if (!geminiApiKey) return { tags: null, source: 'no-key' };
+            if (!hasAnyApiKey()) return { tags: null, source: 'no-key' };
             const tags = await classifyWithProvider(q);
             return { tags, source: aiProvider };
         }
@@ -5167,8 +5255,8 @@ Classify this: "${q}"`;
                     return;
                 }
 
-                // Step 3: AI provider (if user has a key)
-                if (geminiApiKey) {
+                // Step 3: AI provider (.env on server or browser key)
+                if (hasAnyApiKey()) {
                     window._lastAiError = '';
                     const result = await classifyQuery(q);
                     if (lastQuery !== q) { btn.disabled = false; return; }
@@ -5193,8 +5281,8 @@ Classify this: "${q}"`;
         // When AI/local can't decide, show all sites with a small "AI couldn't decide" notice
         function renderAutoFallback(q) {
             const res = document.getElementById('results');
-            const reason = !geminiApiKey
-                ? '⚠️ AI key nahi hai — sab sites dikha rahe hain. Settings me key daalo for smart filter.'
+            const reason = !hasAnyApiKey()
+                ? '⚠️ AI key nahi hai — sab sites dikha rahe hain. .env file ya Settings me key daalo for smart filter.'
                 : '🤔 AI clearly classify nahi kar paya — sab sites dikha rahe hain.';
             // Render all sites
             const prevFilter = activeFilter;
